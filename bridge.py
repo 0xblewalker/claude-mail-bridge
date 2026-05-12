@@ -20,7 +20,7 @@ from email.header import decode_header
 from email.utils import formataddr
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional
 
 try:
     import requests
@@ -249,7 +249,7 @@ def call_api(sender, subject, body):
 def _save_to_imap_folder(msg_bytes, folder_names, flags="\\Seen"):
     """Try to save email to one of the given IMAP folder names (best-effort)."""
     try:
-        imap = imaplib.IMAP4_SSL(EMAIL_CFG["imap_host"])
+        imap = imaplib.IMAP4_SSL(EMAIL_CFG["imap_host"], EMAIL_CFG.get("imap_port", 993))
         imap.login(EMAIL_CFG["address"], EMAIL_CFG["password"])
         for folder in folder_names:
             try:

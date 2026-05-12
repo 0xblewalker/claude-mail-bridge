@@ -228,9 +228,9 @@ async def mail_send(params: SendInput) -> str:
 
         # 存到已发送（best-effort）
         try:
-            imap = imaplib.IMAP4_SSL(EMAIL["imap_host"])
+            imap = imaplib.IMAP4_SSL(EMAIL["imap_host"], EMAIL.get("imap_port", 993))
             imap.login(EMAIL["address"], EMAIL["password"])
-            for folder in ['"Sent Messages"', '"Sent"', '"已发送"']:
+            for folder in ['"Sent Messages"', '"Sent"', '"已发送"', '"[Gmail]/Sent Mail"']:
                 try:
                     imap.select(folder)
                     imap.append(folder, "\\Seen",

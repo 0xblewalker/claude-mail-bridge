@@ -147,9 +147,23 @@ def extract_email_addr(from_header):
 
 # ── IMAP ───────────────────────────────────────────────────────
 
+
+def _send_imap_id(conn):
+    """163/126 等网易邮箱要求客户端先发 IMAP ID 命令自报身份，
+    否则 SELECT 会返回 "Unsafe Login"。对其他服务器无副作用，best-effort。"""
+    try:
+        if "ID" in getattr(conn, "capabilities", ()):
+            imaplib.Commands.setdefault("ID", ("AUTH", "SELECTED"))
+            conn._simple_command(
+                "ID", '("name" "claude-mail-bridge" "version" "1.0" "vendor" "open-source")'
+            )
+    except Exception:
+        pass
+
 def connect_imap():
     conn = imaplib.IMAP4_SSL(EMAIL_CFG["imap_host"], EMAIL_CFG.get("imap_port", 993))
     conn.login(EMAIL_CFG["address"], EMAIL_CFG["password"])
+    _send_imap_id(conn)
     return conn
 
 
@@ -285,10 +299,16 @@ def send_reply(to_addr, subject, body):
         msg["Subject"] = ("Re: " + subject) if not subject.startswith("Re:") else subject
         msg.attach(MIMEText(body, "plain", "utf-8"))
 
-        with smtplib.SMTP(EMAIL_CFG["smtp_host"], EMAIL_CFG.get("smtp_port", 587)) as server:
+        smtp_port = EMAIL_CFG.get("smtp_port", 587)
+        if smtp_port == 465:
+            smtp_cls = smtplib.SMTP_SSL
+        else:
+            smtp_cls = smtplib.SMTP
+        with smtp_cls(EMAIL_CFG["smtp_host"], smtp_port) as server:
             server.ehlo()
-            server.starttls()
-            server.ehlo()
+            if smtp_port != 465:
+                server.starttls()
+                server.ehlo()
             server.login(EMAIL_CFG["address"], EMAIL_CFG["password"])
             server.sendmail(EMAIL_CFG["address"], [to_addr], msg.as_string())
 
